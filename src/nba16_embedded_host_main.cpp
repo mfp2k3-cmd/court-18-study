@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common/key_manager.h"
+#include "core/file_format/psf.h"
 #include "common/logging/log.h"
 #include "common/singleton.h"
 #include "emulator.h"
@@ -25,7 +26,7 @@
 
 namespace {
 
-constexpr wchar_t kDefaultGameRoot[] = L"F:\\shadPS4\\ROMS\\CUSA01933";
+constexpr wchar_t kDefaultGameRoot[] = L"";
 
 struct LaunchOptions {
     std::filesystem::path game_root{kDefaultGameRoot};
@@ -34,6 +35,9 @@ struct LaunchOptions {
     DWORD wait_for_pid{};
 };
 
+bool is_supported_live18_id(std::string_view title_id) {
+    return title_id == "CUSA06321" || title_id == "CUSA06316" || title_id == "CUSA08562";
+}
 LaunchOptions parse_launch_options() {
     LaunchOptions options;
     int count{};
@@ -68,7 +72,7 @@ std::string to_utf8(const std::wstring& value) {
 }
 
 void show_error(const std::wstring& message) {
-    MessageBoxW(nullptr, message.c_str(), L"NBA LIVE 16", MB_OK | MB_ICONERROR);
+    MessageBoxW(nullptr, message.c_str(), L"NBA LIVE 18", MB_OK | MB_ICONERROR);
 }
 
 std::filesystem::path executable_directory() {
@@ -108,8 +112,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
         if (!std::filesystem::is_directory(game_root) ||
             !std::filesystem::is_regular_file(game_root / L"eboot.bin")) {
-            show_error(L"Não encontrei eboot.bin na pasta do dump do NBA LIVE 16.\n\n" +
+            show_error(L"Não encontrei eboot.bin na pasta do dump do NBA LIVE 18.\n\n" +
                        game_root.wstring());
+            return 1;
+        }
+        PSF param_sfo;
+        if (!param_sfo.Open(game_root / L"sce_sys" / L"param.sfo")) {
+            show_error(L"Não foi possível ler sce_sys/param.sfo. Selecione um dump compatível do NBA LIVE 18.");
+            return 1;
+        }
+        const auto title_id = param_sfo.GetString("TITLE_ID");
+        if (!title_id || !is_supported_live18_id(*title_id)) {
+            show_error(L"Este runtime aceita somente NBA LIVE 18: CUSA06321, CUSA06316 ou CUSA08562.");
             return 1;
         }
 
@@ -127,20 +141,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         EmulatorSettingsImpl::SetInstance(std::make_shared<EmulatorSettingsImpl>());
         EmulatorSettings.Load();
         const auto portable_user_dir = executable_directory() / L"user";
-        const std::filesystem::path fallback_user_dir = L"F:\\shadPS4\\USER";
         const auto local_modules = portable_user_dir / L"sys_modules";
         const auto local_fonts = portable_user_dir / L"fonts";
         const auto system_modules = std::filesystem::is_directory(local_modules)
-            ? local_modules : fallback_user_dir / L"sys_modules";
+            ? local_modules : std::filesystem::path{};
         const auto system_fonts = std::filesystem::is_directory(local_fonts)
-            ? local_fonts : fallback_user_dir / L"fonts";
+            ? local_fonts : std::filesystem::path{};
         if (std::filesystem::is_directory(system_modules))
             EmulatorSettings.SetSysModulesDir(system_modules);
         if (std::filesystem::is_directory(system_fonts))
             EmulatorSettings.SetFontsDir(system_fonts);
 
         auto* emulator = Common::Singleton<Core::Emulator>::Instance();
-        emulator->executableName = "NBA LIVE 16.exe";
+        emulator->executableName = "NBA LIVE 18.exe";
         emulator->Run(game_root, {}, game_root);
         const int menu_action = g_requested_menu_action.exchange(0, std::memory_order_acq_rel);
         if (menu_action == 1) {
@@ -158,7 +171,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
             if (!CreateProcessW(executable_path.data(), command_line.data(), nullptr, nullptr,
                                 FALSE, 0, nullptr, restart_directory.c_str(), &startup, &process)) {
-                show_error(L"Não foi possível reiniciar o NBA LIVE 16.");
+                show_error(L"Não foi possível reiniciar o NBA LIVE 18.");
                 ExitProcess(1);
             }
             CloseHandle(process.hThread);

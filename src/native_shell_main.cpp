@@ -9,7 +9,7 @@
 int main() {
     nba16::NativeWindowHost host;
     std::string error;
-    if (!host.initialize("NBA LIVE 16 — Port nativo", 1280, 720, error)) {
+    if (!host.initialize("NBA LIVE 18 — Port nativo", 1280, 720, error)) {
         std::fprintf(stderr, "Não foi possível iniciar a janela Vulkan: %s\n", error.c_str());
         return 1;
     }

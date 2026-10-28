@@ -1,4 +1,4 @@
-[submodule "third_party/shadPS4-prerelease-2cdefaa"]
-	path = third_party/shadPS4-prerelease-2cdefaa
+[submodule "third_party/shadPS4-prerelease-3eecea9"]
+	path = third_party/shadPS4-prerelease-3eecea9
 	url = https://github.com/shadps4-emu/shadPS4.git
 	ignore = dirty

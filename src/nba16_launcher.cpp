@@ -11,11 +11,13 @@
 #include <gdiplus.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -23,7 +25,7 @@ using namespace Gdiplus;
 constexpr wchar_t kWindowClass[] = L"NBA16LauncherWindow";
 constexpr wchar_t kOptionsClass[] = L"NBA16LauncherOptionsWindow";
 constexpr wchar_t kUsersClass[] = L"NBA16LauncherUsersWindow";
-constexpr wchar_t kDefaultGameRoot[] = L"F:\\shadPS4\\ROMS\\CUSA01933";
+constexpr wchar_t kDefaultGameRoot[] = L"";
 constexpr int kPathEdit = 1001, kBrowse = 1002;
 constexpr int kLaunch = 1005, kStatus = 1006, kSaves = 1007, kOptions = 1008;
 constexpr int kSaveBaseEdit = 1009, kBrowseSaveBase = 1010;
@@ -323,7 +325,7 @@ void choose_game_folder() {
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) return;
     DWORD options{}; dialog->GetOptions(&options);
     dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
-    dialog->SetTitle(L"Selecione a pasta do dump CUSA01933");
+    dialog->SetTitle(L"Selecione a pasta do dump CUSA06321");
     if (SUCCEEDED(dialog->Show(g_window))) {
         IShellItem* item{};
         if (SUCCEEDED(dialog->GetResult(&item))) {
@@ -363,7 +365,49 @@ void open_save_folder() {
     ShellExecuteW(g_window, L"open", save_root.c_str(), nullptr, g_app_dir.c_str(), SW_SHOWNORMAL);
 }
 
-bool write_game_config(const std::filesystem::path& user_dir) {
+bool read_game_title_id(const std::filesystem::path& game_path, std::string& title_id) {
+    std::ifstream input(game_path / L"sce_sys" / L"param.sfo", std::ios::binary);
+    if (!input) return false;
+    std::vector<std::uint8_t> bytes{std::istreambuf_iterator<char>(input), {}};
+    if (bytes.size() < 0x14 || bytes.size() > 1024 * 1024 || bytes[0] != 0 ||
+        bytes[1] != 'P' || bytes[2] != 'S' || bytes[3] != 'F') return false;
+    const auto u16 = [&](size_t at) -> std::uint16_t {
+        return static_cast<std::uint16_t>(bytes[at]) |
+               (static_cast<std::uint16_t>(bytes[at + 1]) << 8);
+    };
+    const auto u32 = [&](size_t at) -> std::uint32_t {
+        return static_cast<std::uint32_t>(bytes[at]) |
+               (static_cast<std::uint32_t>(bytes[at + 1]) << 8) |
+               (static_cast<std::uint32_t>(bytes[at + 2]) << 16) |
+               (static_cast<std::uint32_t>(bytes[at + 3]) << 24);
+    };
+    const std::size_t key_table = u32(8), data_table = u32(12), count = u32(16);
+    if (count > 4096 || key_table >= bytes.size() || data_table >= bytes.size() ||
+        count > (bytes.size() - 0x14) / 0x10) return false;
+    for (std::size_t i = 0; i < count; ++i) {
+        const std::size_t entry = 0x14 + i * 0x10;
+        const std::size_t key = key_table + u16(entry);
+        if (key >= bytes.size()) continue;
+        const auto key_end = std::find(bytes.begin() + key, bytes.end(), std::uint8_t{0});
+        if (key_end == bytes.end() || std::string_view(
+                reinterpret_cast<const char*>(bytes.data() + key),
+                static_cast<std::size_t>(key_end - (bytes.begin() + key))) != "TITLE_ID") continue;
+        const std::size_t length = u32(entry + 4);
+        const std::size_t value = data_table + u32(entry + 12);
+        if (length == 0 || value >= bytes.size() || length > bytes.size() - value) return false;
+        const auto value_end = std::find(bytes.begin() + value, bytes.begin() + value + length,
+                                         std::uint8_t{0});
+        title_id.assign(reinterpret_cast<const char*>(bytes.data() + value),
+                        static_cast<std::size_t>(value_end - (bytes.begin() + value)));
+        return !title_id.empty();
+    }
+    return false;
+}
+
+bool supported_game_id(std::string_view title_id) {
+    return title_id == "CUSA06321" || title_id == "CUSA06316" || title_id == "CUSA08562";
+}
+bool write_game_config(const std::filesystem::path& user_dir, const std::string& title_id) {
     const auto& output_resolution = kResolutions[g_resolution_index];
     const auto& render_resolution = kResolutions[g_render_resolution_index];
     unsigned window_width = output_resolution.width;
@@ -381,7 +425,7 @@ bool write_game_config(const std::filesystem::path& user_dir) {
     }
     const auto config_dir = user_dir / L"custom_configs";
     std::error_code ec; std::filesystem::create_directories(config_dir, ec); if (ec) return false;
-    std::ofstream out(config_dir / L"CUSA01933.json", std::ios::binary | std::ios::trunc);
+    std::ofstream out(config_dir / (title_id + ".json"), std::ios::binary | std::ios::trunc);
     if (!out) return false;
     out << "{\n  \"General\": {\"neo_mode\": " << (g_pro_mode_value ? "true" : "false")
         << ", \"show_fps_counter\": " << (g_show_fps_value ? "true" : "false")
@@ -390,6 +434,7 @@ bool write_game_config(const std::filesystem::path& user_dir) {
         << window_width << ", \"window_height\": " << window_height
         << ", \"internal_screen_width\": " << render_resolution.width
         << ", \"internal_screen_height\": " << render_resolution.height
+        << ", \"readbacks_mode\": 2, \"readback_linear_images_enabled\": true"
         << ", \"fsr_enabled\": " << (g_fsr_enabled_value ? "true" : "false")
         << ", \"rcas_enabled\": true, \"rcas_attenuation\": " << ((100 - g_sharpness_value) * 15)
         << ", \"full_screen\": " << (g_fullscreen_value ? "true" : "false")
@@ -405,13 +450,20 @@ void launch_game() {
     if (!length || !std::filesystem::is_regular_file(game_path / L"eboot.bin", ec)) {
         update_status(L"A pasta selecionada não contém eboot.bin.", true); return;
     }
+    std::string title_id;
+    if (!read_game_title_id(game_path, title_id)) {
+        update_status(L"Não foi possível ler o Title ID em sce_sys\\param.sfo.", true); return;
+    }
+    if (!supported_game_id(title_id)) {
+        update_status(L"Esse jogo não é compatível. Selecione NBA LIVE 18: CUSA06321, CUSA06316 ou CUSA08562.", true); return;
+    }
     g_volume_value_saved = g_slider_value;
     save_preferences(game_path);
     const auto profile_base = selected_profile_base();
     const auto user_dir = profile_base / L"user";
-    if (!write_game_config(user_dir)) { update_status(L"Não foi possível gravar as opções do jogo.", true); return; }
-    const auto exe = g_app_dir / L"NBA LIVE 16.exe";
-    if (!std::filesystem::is_regular_file(exe, ec)) { update_status(L"Não encontrei NBA LIVE 16.exe ao lado do launcher.", true); return; }
+    if (!write_game_config(user_dir, title_id)) { update_status(L"Não foi possível gravar as opções do jogo.", true); return; }
+    const auto exe = g_app_dir / L"NBA LIVE 18.exe";
+    if (!std::filesystem::is_regular_file(exe, ec)) { update_status(L"Não encontrei NBA LIVE 18.exe ao lado do launcher.", true); return; }
     const auto user_name = profile_name(g_selected_user_id);
     std::wstring command = L"\"" + exe.wstring() + L"\" --game-dir \"" + game_path.wstring() +
         L"\" --profile-base \"" + profile_base.wstring() + L"\" --user-name \"" + user_name + L"\"";
@@ -425,7 +477,7 @@ void launch_game() {
 }
 
 void create_options_window() {
-    g_options_window = CreateWindowExW(WS_EX_DLGMODALFRAME, kOptionsClass, L"Opções — Court 16",
+    g_options_window = CreateWindowExW(WS_EX_DLGMODALFRAME, kOptionsClass, L"Opções — COURT 18",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 610, 650,
         g_window, nullptr, GetModuleHandleW(nullptr), nullptr);
     make_control(g_options_window, 0, L"STATIC", L"Imagem e exibição", WS_CHILD | WS_VISIBLE, 24, 22, 400, 30, -1, g_title_font);
@@ -451,7 +503,7 @@ void create_options_window() {
 }
 
 void create_users_window() {
-    g_users_window = CreateWindowExW(WS_EX_DLGMODALFRAME, kUsersClass, L"Usuários — Court 16",
+    g_users_window = CreateWindowExW(WS_EX_DLGMODALFRAME, kUsersClass, L"Usuários — COURT 18",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 520, 370,
         g_window, nullptr, GetModuleHandleW(nullptr), nullptr);
     make_control(g_users_window, 0, L"STATIC", L"Perfil de usuário do jogo", WS_CHILD | WS_VISIBLE, 26, 24, 450, 30, -1, g_title_font);
@@ -706,13 +758,13 @@ void paint_background(HWND window) {
     SetBkMode(hdc, TRANSPARENT);
     HFONT old_font = static_cast<HFONT>(SelectObject(hdc, g_title_font));
     SetTextColor(hdc, RGB(222, 186, 105)); RECT title{x, q(14), x + q(470), q(67)};
-    DrawTextW(hdc, L"COURT 16", -1, &title, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, L"COURT 18", -1, &title, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     SelectObject(hdc, g_font); SetTextColor(hdc, RGB(188, 198, 207));
     auto draw_text = [&](const wchar_t* text, int top, int width, UINT flags = DT_LEFT) {
         RECT r{x, q(top), x + q(width), q(top + 30)}; DrawTextW(hdc, text, -1, &r, flags | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     };
-    draw_text(L"Projeto independente para Windows", 74, 500);
-    draw_text(L"Pasta do jogo (dump CUSA01933)", 132, 650);
+    draw_text(L"V: 1.00-A — BETA", 74, 500);
+    draw_text(L"Pasta do jogo (CUSA06321, CUSA06316 ou CUSA08562)", 132, 650);
     draw_text(L"Pasta-base dos saves", 226, 650);
     std::wstring used = L"Perfil: " + profile_name(g_selected_user_id) + L"  |  Saves: " + actual_save_path().wstring();
     draw_text(used.c_str(), 310, 510);
@@ -789,9 +841,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     GdiplusStartupInput gdiplus_input{}; if (GdiplusStartup(&g_gdiplus_token, &gdiplus_input, nullptr) != Ok) return 1;
     g_app_dir = module_directory(); g_launcher_ini = g_app_dir / L"user" / L"launcher.ini";
     g_background_image = std::make_unique<Bitmap>((g_app_dir / L"assets" / L"nba-live16-background-with-ball.jpg").c_str());
-    g_play_ball_image = std::make_unique<Bitmap>((g_app_dir / L"assets" / L"nba-live16-play-ball.png").c_str());
+    g_play_ball_image = std::make_unique<Bitmap>((g_app_dir / L"assets" / L"court18-play-ball.png").c_str());
     g_button_leather_image = std::make_unique<Bitmap>((g_app_dir / L"assets" / L"nba-live16-button-leather.png").c_str());
-    g_ball_icon = static_cast<HICON>(LoadImageW(nullptr, (g_app_dir / L"assets" / L"nba-live16.ico").c_str(), IMAGE_ICON, 48, 48, LR_LOADFROMFILE));
+    g_ball_icon = static_cast<HICON>(LoadImageW(nullptr, (g_app_dir / L"assets" / L"court18.ico").c_str(), IMAGE_ICON, 48, 48, LR_LOADFROMFILE));
     g_panel_brush = CreateSolidBrush(RGB(24, 27, 31));
     g_edit_brush = CreateSolidBrush(RGB(36, 40, 45));
     WNDCLASSEXW options_class{}; options_class.cbSize = sizeof(options_class); options_class.lpfnWndProc = options_window_proc;
@@ -806,7 +858,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     klass.hCursor = LoadCursorW(nullptr, IDC_ARROW); klass.hbrBackground = nullptr; klass.lpszClassName = kWindowClass;
     klass.hIcon = g_ball_icon ? g_ball_icon : LoadIconW(nullptr, IDI_APPLICATION);
     klass.hIconSm = klass.hIcon; if (!RegisterClassExW(&klass)) return 1;
-    HWND window = CreateWindowExW(0, kWindowClass, L"Court 16 — projeto independente", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+    HWND window = CreateWindowExW(0, kWindowClass, L"COURT 18 — V: 1.00-A (BETA)", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 1180, 820, nullptr, nullptr, instance, nullptr);
     if (!window) return 1;
     ShowWindow(window, SW_SHOWMAXIMIZED); UpdateWindow(window);

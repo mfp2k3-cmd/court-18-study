@@ -1,19 +1,8 @@
-NBA LIVE 16 — MANIFESTO DAS FONTES CORRESPONDENTES
+NBA LIVE 18 — MANIFESTO DA BASE DE MIGRAÇÃO
 
-Runtime upstream: https://github.com/shadps4-emu/shadPS4.git
-Commit fixado: 2cdefaa1298c6e4ece6c74bd84e90f3906282d51
-Submódulos do snapshot: inicializados e conferidos.
-Código do launcher e da integração: src/ e assets/ deste pacote.
+Target: CUSA06321.
+shadPS4: 3eecea94ddaca360b19f4b800523b609a8b2ffcc, official pre-release 2026-10-26.
+Origem da integração do host: Court 16 V1.00-C; migração específica do título pendente.
+Os patches de integração principal e customização passaram em verificação de aplicação sobre a revisão acima. Nenhuma build do Live 18 foi produzida nem testada nesta etapa.
 
-Hashes SHA-256 da build Court 16 V1.00-C preparada em 2026-10-27:
-NBA LIVE 16.exe: D621C870C7D6599F881DD46FC4B1099327AE7919F4DA4617139A5C447F335D56
-Court 16 Launcher.exe: 8353BA850BE7882B0B1C31D2310EC60E970BEB3DBF9A902715C21E532030201B
-libc++.dll: 61948629D7C7E3274D4A242E62CBD5CE88919915FDE347D256E1286A105A4AFA
-libwinpthread-1.dll: 8BF735C39287DD06B52313A2E67888D0C3EFC5A6530F12F1E17EDA26AA269944
-
-Hash SHA-256 do patch do runtime:
-nba16-reusable-core-prerelease.patch: 45973C8E67171580DE369BE30978848D6E3FF24E8DAAA249924A0B4BC5732FCE
-nba16-runtime-customizations.patch: 332FAD5856EFF6BB308AF34BE764CBBC17C67B19AA1ABE2FA3C2E374A6F8087E
-
-A compilação é descrita em LEIA-ME-FONTES.txt e PREPARAR-E-COMPILAR.ps1. O manifesto da pasta binária acompanha seus avisos GPL e das DLLs.
-Este pacote de fontes não inclui o jogo, firmware, módulos, chaves, saves, configurações pessoais ou logs.
+Artefatos herdados do projeto Live 18 antigo foram resumidos em docs/; não foram copiados executáveis, dumps, módulos, saves, chaves, logs nem crash dumps.

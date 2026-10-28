@@ -1,0 +1,31 @@
+Comparação canônica de imports
+NBA LIVE 16: 602 imports únicos listados no relatório de preparação
+NBA LIVE 18: 679 imports únicos listados no relatório de preparação
+Identidades PS4 exatas em comum (NID + biblioteca + módulo): 563
+Somente Live 18: 116
+Somente Live 16: 39
+Imports exclusivos do Live 18 por biblioteca/módulo:
+  61 libSceGnmDriver / libSceGnmDriver
+  22 libSceJson2 / libSceJson
+  12 libc / libc
+   8 libSceSaveData / libSceSaveData
+   6 libkernel / libkernel
+   2 libScePlayGo / libScePlayGo
+   1 libSceVoice / libSceVoice
+   1 libSceAppContent / libSceAppContentUtil
+   1 libSceGameLiveStreaming / libSceGameLiveStreaming
+   1 libSceVideoRecording / libSceVideoRecording
+   1 libSceVideoOut / libSceVideoOut
+Provedores estáticos para imports exclusivos do Live 18:
+  61 libSceGnmDriver -> libSceGnmDriver.sprx; 61/61 NIDs encontrados como LIB_FUNCTION na HLE GNM vendorizada
+  22 libSceJson2 -> libSceJson2.sprx; nenhum registro HLE exato encontrado na busca atual
+  12 libc -> libc.prx do dump
+   8 libSceSaveData -> libSceSaveData.sprx
+   6 libkernel -> libkernel.sprx
+Imagem ligada do Live 18 (BBPROBE7):
+  image bytes: 105733392 (cabe na reserva atual de 256 MiB)
+  segmentos: 216 (limite atual: 512)
+  relocations: 460868 (limite atual: 1000000)
+  imports/bindings: 1779
+  módulos: 71 (limite atual: 128)
+  entry: 0x8d0

@@ -1,51 +1,29 @@
-# Court 16 — estudo de port para Windows
+# COURT 18 — V: 1.00-A (Beta)
 
-Projeto comunitário de estudo para executar uma cópia legítima de NBA LIVE 16 no Windows. O runtime desta versão é integrado ao shadPS4; este projeto não contém o jogo nem substitui a necessidade do dump do usuário.
+Projeto experimental para Windows destinado aos dumps próprios do NBA LIVE 18 para PS4, com suporte restrito aos Title IDs CUSA06321, CUSA06316 e CUSA08562. O launcher e o runtime verificam o `TITLE_ID` de `sce_sys/param.sfo` antes de iniciar; outros jogos são recusados.
 
-**Versão:** V1.00-C
+## Estado da beta
 
-## Requisitos
+- O jogo CUSA06321 iniciou e chegou à partida em uma NVIDIA GeForce RTX 3060.
+- O perfil registrou `readbacks_mode: 2` (Precise) e `readback_linear_images_enabled: true`. A captura mais recente mostrou a partida sem os grandes clarões observados anteriormente.
+- O teste com um save do modo carreira ainda está pendente; não trate a correção gráfica como definitiva.
+- CUSA06316 e CUSA08562 são aceitos pela verificação de ID, mas ainda não foram testados em execução.
+- Compatibilidade com outras GPUs e versões de driver ainda não foi verificada.
 
-- Windows x64
-- Dump próprio de NBA LIVE 16, CUSA01933
-- Módulos de firmware obtidos da própria instalação PS4, colocados em `user/sys_modules`
-- GPU e drivers compatíveis com Vulkan
+## Requisitos do usuário
 
-## Executar
+- Um dump próprio do NBA LIVE 18 com um dos três Title IDs aceitos, selecionado no launcher.
+- Módulos de firmware PS4 obtidos pelo próprio usuário, colocados em `user/sys_modules` ao lado do runtime. Eles não fazem parte deste pacote.
+- Windows x64 e GPU/driver compatíveis com Vulkan.
 
-Extraia o arquivo do Release para uma pasta gravável, abra `Court 16 Launcher.exe` e selecione a pasta do dump. A primeira execução criará as configurações locais. Consulte `LEIA-ME.txt` e `user/sys_modules/LEIA-ME-MODULOS.txt` no pacote.
+O pacote não inclui dump do jogo, firmware, módulos, chaves, saves ou logs pessoais.
 
-## Menu durante o jogo
+## Controles do menu durante o jogo
 
-- Abra o menu pelo botão central PS/Guide do controle, ou mantenha Start e Select/Back pressionados juntos por 2 segundos.
-- Use o direcional para escolher; X/A confirma e Círculo/B volta.
-- No menu, alterne a exibição de FPS e o FSR 1. A opção de resolução alterna o tamanho de saída da janela entre 720p, 1080p, 1440p e 4K.
+O menu do jogo pode ser aberto pelo botão PS, pelo botão Xbox Guide ou mantendo Start + Select pressionados por cerca de dois segundos. Nele é possível alternar o contador de FPS, mudar para tela cheia, reiniciar ou fechar o jogo.
 
-## Atualização V1.00-C
+## Licenças e código-fonte
 
-O menu do jogo foi ampliado e recebeu controles para resolução da janela e ativação/desativação do FSR 1 durante a partida.
+O runtime shadPS4 está sob GPL-2.0-or-later. Os avisos e licenças distribuídos estão em `THIRD-PARTY-NOTICES.txt` e `LICENSES/`. Antes de qualquer distribuição pública, disponibilize o código-fonte exato correspondente a esta build, incluindo as alterações locais e os scripts de compilação, conforme a GPL.
 
-## Compilar
-
-O código-fonte correspondente está neste repositório. Clone incluindo o submódulo fixado:
-
-```powershell
-git clone --recurse-submodules https://github.com/mfp2k3-cmd/court-16-study.git
-cd court-16-study
-.\PREPARAR-E-COMPILAR.ps1
-```
-
-O script usa o snapshot shadPS4 registrado em `.gitmodules`, aplica os patches incluídos em `patches/shadps4` e compila o launcher/runtime. Veja `LEIA-ME-FONTES.txt` para os requisitos do toolchain.
-
-## Licenças
-
-O runtime shadPS4 é distribuído sob GPL-2.0-or-later. Os patches deste projeto e os avisos e textos de licença das dependências acompanham o código e o Release. Consulte `LICENSE`, `LICENSES/` e `THIRD-PARTY-NOTICES.txt`.
-
-## Marcas e afiliação
-
-Projeto independente de estudo, sem afiliação, patrocínio ou aprovação da EA, NBA ou Sony. Os nomes dos jogos e plataformas identificam apenas a compatibilidade pretendida. O usuário deve fornecer seu próprio dump e arquivos de firmware.
-
-## Reconhecimento
-
-Os estudos de arquitetura, análise e evolução do código contaram com assistência do OpenAI Codex.
-
+Este é um projeto experimental da comunidade, sem vínculo oficial com Electronic Arts, NBA ou Sony.

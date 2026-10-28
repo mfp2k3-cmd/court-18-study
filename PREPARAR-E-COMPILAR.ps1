@@ -1,12 +1,12 @@
 # Prepare the exact upstream snapshot used by this build, then rebuild the launcher/runtime.
 param(
     [string]$CompilerBin = 'C:\msys64\clang64\bin',
-    [string]$BuildDirectory = 'build\nba16-prerelease-20261025-win'
+    [string]$BuildDirectory = 'build\nba18-prerelease-20261026-win'
 )
 $ErrorActionPreference = 'Stop'
-$revision = '2cdefaa1298c6e4ece6c74bd84e90f3906282d51'
+$revision = '3eecea94ddaca360b19f4b800523b609a8b2ffcc'
 $project = $PSScriptRoot
-$runtime = Join-Path $project 'third_party\shadPS4-prerelease-2cdefaa'
+$runtime = Join-Path $project 'third_party\shadPS4-prerelease-3eecea9'
 $build = Join-Path $project $BuildDirectory
 
 $env:PATH = "$CompilerBin;$env:PATH"

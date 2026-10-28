@@ -316,7 +316,7 @@ bool VulkanPresenter::create(const char* title, std::uint32_t width, std::uint32
     app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app.pApplicationName = title;
     app.applicationVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
-    app.pEngineName = "NBA LIVE 16 Independent Runtime";
+    app.pEngineName = "NBA LIVE 18 Experimental Runtime";
     app.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
     app.apiVersion = VK_API_VERSION_1_1;
     VkInstanceCreateInfo instance_info{};

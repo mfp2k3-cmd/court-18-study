@@ -1,9 +1,13 @@
 param(
     [string]$ShadPS4Root = 'third_party\shadPS4',
-    [string]$CorePatch = 'patches\shadps4\nba16-reusable-core.patch'
+    [string]$CorePatch = 'patches\shadps4\nba16-reusable-core-prerelease.patch'
 )
 
 $ErrorActionPreference = 'Stop'
+# git apply --reverse --check intentionally returns 1 when a patch is not
+# applied yet. Do not let PowerShell promote that expected native exit code to
+# a terminating error; the script handles native exit codes explicitly below.
+$PSNativeCommandUseErrorActionPreference = $false
 
 $repoRoot = if ([System.IO.Path]::IsPathRooted($ShadPS4Root)) {
     $ShadPS4Root
@@ -31,7 +35,7 @@ foreach ($item in $patches) {
         throw "Submódulo necessário não encontrado: $repo. Execute git submodule update --init --recursive primeiro."
     }
 
-    & git -C $repo apply --reverse --check $patch 2>$null
+    & cmd.exe /d /c "git -C `"$repo`" apply --reverse --check `"$patch`" 2>NUL"
     if ($LASTEXITCODE -eq 0) {
         continue
     }

@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
-project(nba16_inspect VERSION 0.1.0 LANGUAGES CXX ASM)
+project(nba18_port VERSION 0.1.0 LANGUAGES CXX ASM)
 
 option(NBA16_BUILD_SHADPS4_RUNTIME
     "Build the pinned GPL shadPS4 runtime from third_party/shadPS4" OFF)
 option(NBA16_BUILD_SHADPS4_CORE
     "Also build reusable shadPS4 core components for in-process NBA integration" OFF)
-set(NBA16_SHADPS4_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/shadPS4" CACHE PATH
+set(NBA16_SHADPS4_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/shadPS4-prerelease-3eecea9" CACHE PATH
     "Source tree for the pinned shadPS4 core")
-set(NBA16_SHADPS4_CORE_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/shadps4/nba16-reusable-core.patch" CACHE FILEPATH
-    "Local core integration patch for NBA LIVE 16")
+set(NBA16_SHADPS4_CORE_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/shadps4/nba16-reusable-core-prerelease.patch" CACHE FILEPATH
+    "Local runtime integration patch used by the NBA LIVE 18 migration base")
 set(NBA16_PROTOC_EXECUTABLE "" CACHE FILEPATH
     "Optional prebuilt protoc executable to avoid building libprotoc")
 
@@ -185,7 +185,7 @@ if(NBA16_BUILD_SHADPS4_RUNTIME)
         if(WIN32)
             list(APPEND NBA16_SHADPS4_TARGETS nba16-port)
             list(APPEND NBA16_SHADPS4_BYPRODUCTS
-                "${CMAKE_BINARY_DIR}/shadPS4-runtime/NBA LIVE 16.exe")
+                "${CMAKE_BINARY_DIR}/shadPS4-runtime/NBA LIVE 18.exe")
         endif()
         list(APPEND NBA16_SHADPS4_BYPRODUCTS
             "${CMAKE_BINARY_DIR}/shadPS4-runtime/libnba16-shadps4-core.a")
@@ -230,7 +230,7 @@ if(NBA16_BUILD_SHADPS4_RUNTIME)
         target_compile_features(nba16-launcher PRIVATE cxx_std_20)
         target_link_libraries(nba16-launcher PRIVATE comctl32 gdiplus ole32 shell32 uuid)
         set_target_properties(nba16-launcher PROPERTIES
-            OUTPUT_NAME "Court 16 Launcher"
+            OUTPUT_NAME "COURT 18 Launcher"
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/shadPS4-runtime"
         )
         add_dependencies(nba16-launcher nba16-shadps4-runtime)
@@ -249,14 +249,14 @@ if(NBA16_BUILD_SHADPS4_RUNTIME)
                 "${CMAKE_CURRENT_SOURCE_DIR}/assets/nba-live16-background.jpg"
                 "$<TARGET_FILE_DIR:nba16-launcher>/assets/nba-live16-background.jpg"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_SOURCE_DIR}/assets/nba-live16-play-ball.png"
-                "$<TARGET_FILE_DIR:nba16-launcher>/assets/nba-live16-play-ball.png"
+                "${CMAKE_CURRENT_SOURCE_DIR}/assets/court18-play-ball.png"
+                "$<TARGET_FILE_DIR:nba16-launcher>/assets/court18-play-ball.png"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${CMAKE_CURRENT_SOURCE_DIR}/assets/nba-live16-button-leather.png"
                 "$<TARGET_FILE_DIR:nba16-launcher>/assets/nba-live16-button-leather.png"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_SOURCE_DIR}/assets/nba-live16.ico"
-                "$<TARGET_FILE_DIR:nba16-launcher>/assets/nba-live16.ico"
+                "${CMAKE_CURRENT_SOURCE_DIR}/assets/court18.ico"
+                "$<TARGET_FILE_DIR:nba16-launcher>/assets/court18.ico"
             VERBATIM
         )
     endif()

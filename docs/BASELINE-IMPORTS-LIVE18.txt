@@ -1,0 +1,13 @@
+BASELINE ESTÁTICO DO NBA LIVE 18 (CUSA06321)
+
+Comparação de imports por identidade PS4 (NID + biblioteca + módulo), preservada do relatório local do projeto anterior:
+- Live 16: 602 imports únicos.
+- Live 18: 679 imports únicos.
+- Em comum: 563.
+- Somente Live 18: 116.
+
+Imports exclusivos do Live 18: 61 GNM, 22 JSON2, 12 libc, 8 SaveData, 6 libkernel e 7 distribuídos por outros módulos. O link estático anterior encontrou provedores para os imports analisados, mas isso não comprova ABI correta nem execução dos módulos.
+
+Imagem ligada anteriormente: 105.733.392 bytes, 216 segmentos, 460.868 relocations, entry 0x8d0 e 71 módulos. Esses valores cabiam nos limites configurados do loader anterior, mas não demonstravam boot funcional.
+
+Último estado em execução registrado no checkpoint de 23/10/2026: janela Loading/0 FPS, threads FGGameSim e FGGameRender esperando, sem submissão de comandos GNM nem flip. Esses dados são uma referência histórica; a nova base precisa de logs próprios para qualquer conclusão.

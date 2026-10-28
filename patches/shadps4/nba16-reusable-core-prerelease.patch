@@ -6,7 +6,7 @@ index d933af56..a6dbd043 100644
  option(ENABLE_UPDATER "Enables the options to updater" ON)
  option(ENABLE_TESTS "Build unit tests (requires GTest)" OFF)
  option(ENABLE_SYSTEM_LIBRARIES "Enable building against system libraries" OFF)
-+option(NBA16_BUILD_REUSABLE_CORE "Build the GPL core as a library for the NBA LIVE 16 host" OFF)
++option(NBA16_BUILD_REUSABLE_CORE "Build the GPL core as a library for the NBA LIVE 18 host" OFF)
  
  # First, determine whether to use CMAKE_OSX_ARCHITECTURES or CMAKE_SYSTEM_PROCESSOR.
  if (APPLE AND CMAKE_OSX_ARCHITECTURES)
@@ -59,7 +59,7 @@ index d933af56..a6dbd043 100644
 +            "${SHADNET_PROTO_OUT}"
 +        )
 +        target_compile_features(nba16-port PRIVATE cxx_std_20)
-+        set_target_properties(nba16-port PROPERTIES OUTPUT_NAME "NBA LIVE 16")
++        set_target_properties(nba16-port PROPERTIES OUTPUT_NAME "NBA LIVE 18")
 +
 +        get_filename_component(NBA16_TOOLCHAIN_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
 +        foreach(NBA16_RUNTIME_DLL IN ITEMS libc++.dll libwinpthread-1.dll)

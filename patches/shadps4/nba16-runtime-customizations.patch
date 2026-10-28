@@ -106,7 +106,7 @@ index da64436f..faf90bb6 100644
 +            ImGui::SetNextWindowSize(ImVec2(470.0f, 390.0f), ImGuiCond_Always);
 +            ImGui::SetNextWindowFocus();
 +            ImGui::SetNextWindowBgAlpha(0.96f);
-+            if (Begin("NBA LIVE 16 — Menu do jogo", nullptr,
++            if (Begin("NBA LIVE 18 — Menu do jogo", nullptr,
 +                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
 +                          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
 +                          ImGuiWindowFlags_NoDocking)) {
@@ -222,7 +222,7 @@ index 355458a7..529f0722 100644
          ExtractTrophies("/app0/sce_sys/npbind.dat", "/app0/sce_sys/trophy");
  
 +#ifdef NBA16_EMBEDDED_PORT
-+    const std::string window_title = "NBA LIVE 16";
++    const std::string window_title = "NBA LIVE 18";
 +#else
      std::string game_title = fmt::format("{} - {} <{}>", id, title, app_version);
      std::string window_title = "";

@@ -114,7 +114,7 @@ bool initialize_shadps4_game_metadata(const std::filesystem::path& game_root,
     } else if (title_id) {
         serial = *title_id;
     }
-    const std::string title{psf.GetString("TITLE").value_or("NBA LIVE 16")};
+    const std::string title{psf.GetString("TITLE").value_or("NBA LIVE 18")};
     const std::string app_version{psf.GetString("APP_VER").value_or("1.00")};
     const auto raw_firmware = static_cast<std::uint32_t>(
         psf.GetInteger("SYSTEM_VER").value_or(0x04700000));

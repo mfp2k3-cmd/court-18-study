@@ -4433,7 +4433,7 @@ if (!process_modules.relocate(resolver, error)) {
                         constexpr std::size_t guest_stack_size = 16U * 1024U * 1024U;
                         nba16::NativeRuntimePaths runtime_paths{};
                         if (!nba16::resolve_native_runtime_paths(std::filesystem::path(argv[1]),
-                                user_root, "CUSA01933", runtime_paths, error)) {
+                                user_root, "CUSA06321", runtime_paths, error)) {
                             std::cerr << "Caminhos do runtime não puderam ser resolvidos: "
                                       << error << '\n';
                             return 1;
