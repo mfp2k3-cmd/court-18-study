@@ -29,3 +29,6 @@ Não inclua nem compartilhe dump, firmware, módulos, chaves, saves ou logs pess
 ## Distribuição
 
 Este é um pacote beta de teste. Preserve `LICENSE`, `LICENSES/` e `THIRD-PARTY-NOTICES.txt`. A publicação pública deve acompanhar o código-fonte correspondente a esta build, incluindo patches e scripts locais, conforme GPL-2.0-or-later.
+## Código-fonte
+
+O código correspondente ao runtime e os patches locais estão no repositório público. Para obter também a revisão exata do shadPS4 usada nesta build, clone com submódulos: git clone --recurse-submodules https://github.com/mfp2k3-cmd/court-18-study.git. Preserve as licenças e avisos incluídos no repositório.
