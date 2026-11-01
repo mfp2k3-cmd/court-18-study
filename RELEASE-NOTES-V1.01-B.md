@@ -10,9 +10,9 @@ Atualização do COURT 18 para Windows, voltada aos dumps próprios do NBA LIVE 
 - Correção de crash durante o gameplay e ao retornar ao menu.
 - Identificação do launcher atualizada para V: 1.01-B.
 
-## Testes relatados
+## Testes
 
-O usuário testou a build principal e informou que o jogo não crashou durante o gameplay nem ao retornar ao menu. CUSA06321 foi o Title ID testado. CUSA06316 e CUSA08562 continuam sem validação em execução.
+No teste informado pelo usuário, CUSA06321 completou o gameplay e retornou ao menu sem crash. CUSA06316 e CUSA08562 são aceitos pelo launcher, mas ainda não foram validados em execução.
 
 ## Estado conhecido
 
@@ -22,4 +22,4 @@ Quedas de FPS em cenas carregadas ainda podem ocorrer. Esta versão não anuncia
 
 Use um dump próprio com CUSA06321, CUSA06316 ou CUSA08562 e forneça seus próprios módulos de firmware PS4. Nenhum dump, módulo, firmware, chave, save ou log pessoal acompanha a build.
 
-Preserve as licenças e os avisos de terceiros. Disponibilize o código-fonte exato desta build, com patches e scripts locais, conforme GPL-2.0-or-later.
+Preserve as licenças e os avisos de terceiros. O código-fonte correspondente, incluindo patches e scripts locais, está em https://github.com/mfp2k3-cmd/court-18-study, conforme GPL-2.0-or-later.
