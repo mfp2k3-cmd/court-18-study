@@ -1,6 +1,7 @@
 # Build products and local build caches
 /build/
 /out/
+/release/
 **/CMakeFiles/
 **/CMakeCache.txt
 **/build.ninja

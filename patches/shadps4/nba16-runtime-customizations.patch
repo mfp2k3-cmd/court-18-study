@@ -327,7 +327,7 @@ index a7d36502..2a67811d 100644
 +        if (path_length > 0 && path_length < executable_path.size()) {
 +            const std::filesystem::path icon_path =
 +                std::filesystem::path(std::wstring(executable_path.data(), path_length))
-+                    .parent_path() / L"assets" / L"nba-live16.ico";
++                    .parent_path() / L"assets" / L"court18.ico";
 +            nba16_icon = static_cast<HICON>(LoadImageW(nullptr, icon_path.c_str(), IMAGE_ICON, 0, 0,
 +                                                       LR_LOADFROMFILE | LR_DEFAULTSIZE));
 +        }

@@ -1,8 +1,11 @@
-NBA LIVE 18 — MANIFESTO DA BASE DE MIGRAÇÃO
+COURT 18 — MANIFESTO DE CÓDIGO-FONTE V1.01-B
 
-Target: CUSA06321.
-shadPS4: 3eecea94ddaca360b19f4b800523b609a8b2ffcc, official pre-release 2026-10-26.
-Origem da integração do host: Court 16 V1.00-C; migração específica do título pendente.
-Os patches de integração principal e customização passaram em verificação de aplicação sobre a revisão acima. Nenhuma build do Live 18 foi produzida nem testada nesta etapa.
+Runtime: NBA LIVE 18 para Windows, testado com dump próprio CUSA06321.
+Base shadPS4: commit 3eecea94ddaca360b19f4b800523b609a8b2ffcc (pre-release de 2026-10-26).
+Código do launcher: src/nba16_launcher.cpp.
+Alterações do runtime: patches/shadps4/nba16-reusable-core-prerelease.patch e patches/shadps4/nba16-runtime-customizations.patch.
+Aplicação dos patches e compilação: apply-shadps4-local-patches.ps1, PREPARAR-E-COMPILAR.ps1 e CMakeLists.txt.
 
-Artefatos herdados do projeto Live 18 antigo foram resumidos em docs/; não foram copiados executáveis, dumps, módulos, saves, chaves, logs nem crash dumps.
+Os binários da build principal foram compilados localmente; o launcher V1.01-B foi recompilado em 2026-10-31. O runtime da partida foi compilado em 2026-10-28 a partir da revisão acima com os patches locais. O usuário relatou testes sem crash durante o gameplay e ao voltar ao menu para CUSA06321.
+
+O repositório contém o código e os patches correspondentes. A pasta de distribuição não deve incluir dumps, módulos de firmware, chaves, saves, configurações pessoais, logs ou crash dumps.

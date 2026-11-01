@@ -775,3 +775,245 @@ index 069df972..f1d5ed7a 100644
                  CheckAndMigrateSaves(user_choice);
                  CheckAndMigrateTrophies(user_choice);
              }
+
+diff --git a/src/video_core/amdgpu/liverpool.cpp b/src/video_core/amdgpu/liverpool.cpp
+index 13405763..401b3bee 100644
+--- a/src/video_core/amdgpu/liverpool.cpp
++++ b/src/video_core/amdgpu/liverpool.cpp
+@@ -193,12 +193,17 @@ Liverpool::Task Liverpool::ProcessCeUpdate(std::span<const u32> ccb) {
+ 
+         const auto* header = reinterpret_cast<const PM4Header*>(ccb.data());
+         const u32 type = header->type;
++        if (type == 2) {
++            ccb = NextPacket(ccb, 1);
++            continue;
++        }
+         if (type != 3) {
+             // No other types of packets were spotted so far
+             UNREACHABLE_MSG("Invalid PM4 type {}", type);
+         }
+ 
+         const PM4ItOpcode opcode = header->type3.opcode;
++        const u32 packet_words = header->type3.NumWords() + 1;
+         const auto* it_body = reinterpret_cast<const u32*>(header) + 1;
+         switch (opcode) {
+         case PM4ItOpcode::Nop: {
+@@ -244,12 +249,19 @@ Liverpool::Task Liverpool::ProcessCeUpdate(std::span<const u32> ccb) {
+             }
+             break;
+         }
++        case PM4ItOpcode::Rewind: {
++            const auto* rewind = reinterpret_cast<const PM4CmdRewind*>(header);
++            while (!rewind->Valid()) {
++                YIELD_CE();
++            }
++            break;
++        }
+         default:
+             const u32 count = header->type3.NumWords();
+             UNREACHABLE_MSG("Unknown PM4 type 3 opcode {:#x} with count {}",
+                             static_cast<u32>(opcode), count);
+         }
+-        ccb = NextPacket(ccb, header->type3.NumWords() + 1);
++        ccb = NextPacket(ccb, packet_words);
+     }
+ 
+     FIBER_EXIT;
+@@ -258,7 +270,7 @@ Liverpool::Task Liverpool::ProcessCeUpdate(std::span<const u32> ccb) {
+ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb) {
+     FIBER_ENTER(dcb_task_name);
+ 
+-    const auto base_addr = reinterpret_cast<uintptr_t>(dcb.data());
++    auto base_addr = reinterpret_cast<uintptr_t>(dcb.data());
+     while (!dcb.empty()) {
+         ProcessCommands();
+ 
+@@ -842,6 +854,11 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb) {
+             }
+             case PM4ItOpcode::IndirectBuffer: {
+                 const auto* indirect_buffer = reinterpret_cast<const PM4CmdIndirectBuffer*>(header);
++                if (indirect_buffer->chain) {
++                    dcb = {indirect_buffer->Address<const u32>(), indirect_buffer->ib_size};
++                    base_addr = reinterpret_cast<uintptr_t>(dcb.data());
++                    continue;
++                }
+                 auto task = ProcessGraphics(
+                     {indirect_buffer->Address<const u32>(), indirect_buffer->ib_size});
+                 SCOPE_EXIT {
+@@ -900,7 +917,7 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb) {
+                 UNREACHABLE_MSG("Unknown PM4 type 3 opcode {:#x} with count {}",
+                                 static_cast<u32>(opcode), count);
+             }
+-            dcb = NextPacket(dcb, header->type3.NumWords() + 1);
++            dcb = NextPacket(dcb, count + 1);
+             break;
+         }
+     }
+@@ -973,6 +990,14 @@ Liverpool::Task Liverpool::ProcessCompute(std::span<const u32> acb, u32 vqid) {
+         }
+         case PM4ItOpcode::IndirectBuffer: {
+             const auto* indirect_buffer = reinterpret_cast<const PM4CmdIndirectBuffer*>(header);
++            if constexpr (is_indirect) {
++                if (indirect_buffer->chain) {
++                    acb = {indirect_buffer->Address<const u32>(), indirect_buffer->ib_size};
++                    base_addr = reinterpret_cast<VAddr>(acb.data());
++                    acb_size = acb.size_bytes();
++                    continue;
++                }
++            }
+             auto task = ProcessCompute<true>(
+                 {indirect_buffer->Address<const u32>(), indirect_buffer->ib_size}, vqid);
+             SCOPE_EXIT {
+diff --git a/src/video_core/amdgpu/pm4_cmds.h b/src/video_core/amdgpu/pm4_cmds.h
+index 3092c36f..308428b6 100644
+--- a/src/video_core/amdgpu/pm4_cmds.h
++++ b/src/video_core/amdgpu/pm4_cmds.h
+@@ -3,6 +3,7 @@
+ 
+ #pragma once
+ 
++#include <atomic>
+ #include <cstring>
+ #include "common/assert.h"
+ #include "common/bit_field.h"
+@@ -651,7 +652,8 @@ struct PM4CmdRewind {
+     };
+ 
+     bool Valid() const {
+-        return valid;
++        return (std::atomic_ref<u32>{const_cast<u32&>(raw)}.load(std::memory_order_acquire) >>
++                31) != 0;
+     }
+ };
+ 
+diff --git a/src/video_core/texture_cache/image.cpp b/src/video_core/texture_cache/image.cpp
+index 32642ebc..2016e521 100644
+--- a/src/video_core/texture_cache/image.cpp
++++ b/src/video_core/texture_cache/image.cpp
+@@ -1,6 +1,7 @@
+ // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
++#include <algorithm>
+ #include <memory>
+ #include "common/assert.h"
+ #include "video_core/renderer_vulkan/liverpool_to_vk.h"
+@@ -248,18 +249,33 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
+         // resource transition for the next time.
+         const u32 start_mip = needs_partial_transition ? subres_range->base.level : u16{0};
+         const u32 end_mip = needs_partial_transition
+-                                ? subres_range->base.level + subres_range->extent.levels
++                                ? std::min<u32>(subres_range->base.level + subres_range->extent.levels,
++                                                info.resources.levels)
+                                 : info.resources.levels;
+         const u32 start_layer = needs_partial_transition ? subres_range->base.layer : u16{0};
+         const u32 end_layer = needs_partial_transition
+-                                  ? subres_range->base.layer + subres_range->extent.layers
++                                  ? std::min<u32>(subres_range->base.layer + subres_range->extent.layers,
++                                                  info.resources.layers)
+                                   : info.resources.layers;
+         for (u32 mip = start_mip; mip < end_mip; ++mip) {
+             for (u32 layer = start_layer; layer < end_layer; ++layer) {
+                 // NOTE: these loops may produce a lot of small barriers.
+                 // If this becomes a problem, we can optimize it by merging adjacent barriers.
+                 const auto subres_idx = mip * info.resources.layers + layer;
+-                ASSERT(subres_idx < subresource_states.size());
++                ASSERT_MSG(subres_idx < subresource_states.size(),
++                           "GetBarriers OOB: mip={} layer={} subres_idx={} size={} "
++                           "levels={} layers={} needs_partial={} partially_transited={} "
++                           "subres_range: {}",
++                           mip, layer, subres_idx, subresource_states.size(),
++                           info.resources.levels, info.resources.layers,
++                           needs_partial_transition, partially_transited,
++                           subres_range
++                               ? fmt::format("base.level={} base.layer={} extent.levels={} "
++                                             "extent.layers={}",
++                                             subres_range->base.level, subres_range->base.layer,
++                                             subres_range->extent.levels,
++                                             subres_range->extent.layers)
++                               : "none");
+                 auto& state = subresource_states[subres_idx];
+ 
+                 constexpr auto write_flags = vk::AccessFlagBits2::eTransferWrite |
+diff --git a/src/video_core/texture_cache/image_view.cpp b/src/video_core/texture_cache/image_view.cpp
+index 95daedd2..af6e862b 100644
+--- a/src/video_core/texture_cache/image_view.cpp
++++ b/src/video_core/texture_cache/image_view.cpp
+@@ -62,7 +62,29 @@ ImageViewInfo::ImageViewInfo(const AmdGpu::Image& image, const Shader::ImageReso
+     }
+ 
+     range.base.level = image.base_level;
+-    range.base.layer = std::min<u32>(image.base_array, image.NumLayers() - 1);
++    const bool is_array_image = image.GetType() == AmdGpu::ImageType::Color1DArray ||
++                                image.GetType() == AmdGpu::ImageType::Color2DArray ||
++                                image.GetType() == AmdGpu::ImageType::Color2DMsaaArray ||
++                                image.GetType() == AmdGpu::ImageType::Cube;
++    if (is_array_image) {
++        range.base.layer = image.base_array;
++        if (image.base_array > 0) {
++            LOG_DEBUG(Render_Vulkan,
++                      "ImageViewInfo: array texture base_array={} NumLayers()={} "
++                      "(type={} depth={}) using base_array as layer",
++                      image.base_array, image.NumLayers(), magic_enum::enum_name(image.GetType()),
++                      image.depth);
++        }
++    } else {
++        range.base.layer = 0u;
++        if (image.base_array > 0) {
++            LOG_DEBUG(Render_Vulkan,
++                      "ImageViewInfo: non-array texture base_array={} NumLayers()={} "
++                      "(type={} depth={}) using local layer 0",
++                      image.base_array, image.NumLayers(), magic_enum::enum_name(image.GetType()),
++                      image.depth);
++        }
++    }
+     range.extent.levels = image.NumViewLevels(desc.is_array);
+     range.extent.layers = image.NumViewLayers(desc.is_array);
+     type = image.GetViewType(desc.is_array);
+diff --git a/src/video_core/texture_cache/texture_cache.cpp b/src/video_core/texture_cache/texture_cache.cpp
+index 35e6ba66..a4ab6ce8 100644
+--- a/src/video_core/texture_cache/texture_cache.cpp
++++ b/src/video_core/texture_cache/texture_cache.cpp
+@@ -261,7 +261,7 @@ ImageId TextureCache::ResolveDepthOverlap(const ImageInfo& requested_info, Bindi
+     const bool bpp_match = requested_info.num_bits == cache_image.info.num_bits;
+ 
+     // If an image in the cache has less slices we need to expand it
+-    bool recreate = cache_image.info.resources < requested_info.resources;
++    bool recreate = !cache_image.info.resources.Contains(requested_info.resources);
+ 
+     switch (binding) {
+     case BindingType::Texture:
+@@ -380,7 +380,7 @@ std::tuple<ImageId, int, int> TextureCache::ResolveOverlap(const ImageInfo& imag
+ 
+         // Size and resources are greater, expand the image.
+         if (image_info.type == cache_image.info.type &&
+-            image_info.resources > cache_image.info.resources) {
++            !cache_image.info.resources.Contains(image_info.resources)) {
+             return {ExpandImage(image_info, cache_image_id), -1, -1};
+         }
+ 
+@@ -646,7 +646,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
+         if (exact_fmt && info.pixel_format != image_resolved.info.pixel_format) {
+             // Cannot reuse this image as we need the exact requested format.
+             image_id = {};
+-        } else if (image_resolved.info.resources < info.resources) {
++        } else if (!image_resolved.info.resources.Contains(info.resources)) {
+             // The image was clearly picked up wrong.
+             FreeImage(image_id);
+             image_id = {};
+diff --git a/src/video_core/texture_cache/types.h b/src/video_core/texture_cache/types.h
+index 67e60702..c1f739dd 100644
+--- a/src/video_core/texture_cache/types.h
++++ b/src/video_core/texture_cache/types.h
+@@ -65,6 +65,11 @@ struct SubresourceExtent {
+     u16 layers = 1;
+ 
+     auto operator<=>(const SubresourceExtent&) const = default;
++
++    // An extent contains another only if both dimensions are large enough.
++    bool Contains(const SubresourceExtent& other) const noexcept {
++        return levels >= other.levels && layers >= other.layers;
++    }
+ };
+ 
+ struct SubresourceRange {

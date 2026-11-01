@@ -33,7 +33,7 @@ constexpr int kUsers = 1012;
 constexpr int kResolution = 1101, kRefresh = 1102, kFullscreen = 1103, kProMode = 1104;
 constexpr int kSaveOptions = 1105, kRenderResolution = 1106, kFsrEnabled = 1107;
 constexpr int kUserProfile = 1108, kUserName = 1109, kCreateUser = 1110, kRenameUser = 1111;
-constexpr int kSaveUsers = 1112, kDeleteUser = 1113, kShowFps = 1114;
+constexpr int kSaveUsers = 1112, kDeleteUser = 1113, kShowFps = 1114, kReadbacksMode = 1115;
 
 struct Resolution { const wchar_t* label; unsigned width; unsigned height; };
 constexpr Resolution kResolutions[] = {
@@ -43,7 +43,7 @@ constexpr Resolution kResolutions[] = {
 
 HWND g_window{}, g_options_window{}, g_users_window{};
 HWND g_path_edit{}, g_save_base_edit{};
-HWND g_resolution{}, g_render_resolution{}, g_refresh{}, g_fullscreen{}, g_pro_mode{}, g_fsr_enabled{}, g_show_fps{};
+HWND g_resolution{}, g_render_resolution{}, g_refresh{}, g_fullscreen{}, g_pro_mode{}, g_fsr_enabled{}, g_show_fps{}, g_readbacks_mode{};
 HWND g_user_profile{}, g_user_name{};
 HFONT g_font{}, g_button_font{}, g_title_font{};
 std::filesystem::path g_app_dir, g_launcher_ini;
@@ -55,6 +55,7 @@ HBRUSH g_panel_brush{};
 HBRUSH g_edit_brush{};
 ULONG_PTR g_gdiplus_token{};
 int g_resolution_index{1}, g_render_resolution_index{1}, g_refresh_index{}, g_volume_value_saved{100};
+int g_readbacks_mode_value{2};
 struct UserProfile { int id{}; std::wstring name; };
 std::vector<UserProfile> g_user_profiles;
 int g_selected_user_id{};
@@ -287,12 +288,15 @@ void load_preferences() {
         L"Launcher", L"FsrSharpness", 83, g_launcher_ini.c_str())), 0, 100);
     g_show_fps_value = GetPrivateProfileIntW(L"Launcher", L"ShowFps", 0,
                                               g_launcher_ini.c_str()) != 0;
+    g_readbacks_mode_value = std::clamp(static_cast<int>(GetPrivateProfileIntW(
+        L"Launcher", L"ReadbacksMode", 2, g_launcher_ini.c_str())), 0, 2);
     g_volume_value_saved = std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Launcher", L"Volume", 100,
                                               g_launcher_ini.c_str())), 50, 150);
     g_slider_value = g_volume_value_saved; update_volume_label();
     SendMessageW(g_resolution, CB_SETCURSEL, g_resolution_index, 0);
     SendMessageW(g_render_resolution, CB_SETCURSEL, g_render_resolution_index, 0);
     SendMessageW(g_refresh, CB_SETCURSEL, g_refresh_index, 0);
+    SendMessageW(g_readbacks_mode, CB_SETCURSEL, g_readbacks_mode_value, 0);
     SendMessageW(g_fullscreen, BM_SETCHECK, g_fullscreen_value ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(g_pro_mode, BM_SETCHECK, g_pro_mode_value ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(g_fsr_enabled, BM_SETCHECK, g_fsr_enabled_value ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -312,6 +316,7 @@ void save_preferences(const std::filesystem::path& game_path) {
     WritePrivateProfileStringW(L"Launcher", L"RefreshRate", g_refresh_index ? L"120" : L"60", g_launcher_ini.c_str());
     WritePrivateProfileStringW(L"Launcher", L"Fullscreen", g_fullscreen_value ? L"1" : L"0", g_launcher_ini.c_str());
     WritePrivateProfileStringW(L"Launcher", L"ProMode", g_pro_mode_value ? L"1" : L"0", g_launcher_ini.c_str());
+    WritePrivateProfileStringW(L"Launcher", L"ReadbacksMode", std::to_wstring(g_readbacks_mode_value).c_str(), g_launcher_ini.c_str());
     WritePrivateProfileStringW(L"Launcher", L"Volume", std::to_wstring(g_volume_value_saved).c_str(), g_launcher_ini.c_str());
 }
 
@@ -434,7 +439,7 @@ bool write_game_config(const std::filesystem::path& user_dir, const std::string&
         << window_width << ", \"window_height\": " << window_height
         << ", \"internal_screen_width\": " << render_resolution.width
         << ", \"internal_screen_height\": " << render_resolution.height
-        << ", \"readbacks_mode\": 2, \"readback_linear_images_enabled\": true"
+        << ", \"readbacks_mode\": " << g_readbacks_mode_value << ", \"readback_linear_images_enabled\": true"
         << ", \"fsr_enabled\": " << (g_fsr_enabled_value ? "true" : "false")
         << ", \"rcas_enabled\": true, \"rcas_attenuation\": " << ((100 - g_sharpness_value) * 15)
         << ", \"full_screen\": " << (g_fullscreen_value ? "true" : "false")
@@ -478,7 +483,7 @@ void launch_game() {
 
 void create_options_window() {
     g_options_window = CreateWindowExW(WS_EX_DLGMODALFRAME, kOptionsClass, L"Opções — COURT 18",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 610, 650,
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 610, 720,
         g_window, nullptr, GetModuleHandleW(nullptr), nullptr);
     make_control(g_options_window, 0, L"STATIC", L"Imagem e exibição", WS_CHILD | WS_VISIBLE, 24, 22, 400, 30, -1, g_title_font);
     make_control(g_options_window, 0, L"STATIC", L"Resolução de saída", WS_CHILD | WS_VISIBLE, 28, 68, 190, 28, -1, g_font);
@@ -496,10 +501,16 @@ void create_options_window() {
     g_fullscreen = make_control(g_options_window, 0, L"BUTTON", L"Tela cheia", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 28, 290, 260, 30, kFullscreen, g_font);
     g_pro_mode = make_control(g_options_window, 0, L"BUTTON", L"Modo PS4 Pro (experimental)", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 28, 326, 340, 30, kProMode, g_font);
     g_show_fps = make_control(g_options_window, 0, L"BUTTON", L"Mostrar contador de FPS durante o jogo", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 28, 362, 430, 28, kShowFps, g_font);
-    make_control(g_options_window, 0, L"STATIC", L"Volume do jogo", WS_CHILD | WS_VISIBLE, 28, 404, 190, 28, -1, g_font);
-    make_control(g_options_window, 0, L"STATIC", L"A nitidez só tem efeito quando o FSR 1 está ativado.", WS_CHILD | WS_VISIBLE, 28, 498, 540, 28, -1, g_font);
-    make_control(g_options_window, 0, L"STATIC", L"FSR 1 amplia quando a resolução interna é menor que a de saída.", WS_CHILD | WS_VISIBLE, 28, 526, 540, 28, -1, g_font);
-    make_control(g_options_window, 0, L"BUTTON", L"Salvar e fechar", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 365, 558, 165, 38, kSaveOptions, g_font);
+    make_control(g_options_window, 0, L"STATIC", L"Modo de readbacks da GPU", WS_CHILD | WS_VISIBLE, 28, 401, 250, 28, -1, g_font);
+    g_readbacks_mode = make_control(g_options_window, 0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 300, 397, 230, 100, kReadbacksMode, g_font);
+    SendMessageW(g_readbacks_mode, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Disabled (0)"));
+    SendMessageW(g_readbacks_mode, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Relaxed (1)"));
+    SendMessageW(g_readbacks_mode, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Precise (2)"));
+    make_control(g_options_window, 0, L"STATIC", L"Volume do jogo", WS_CHILD | WS_VISIBLE, 28, 444, 190, 28, -1, g_font);
+    make_control(g_options_window, 0, L"STATIC", L"Precise prioriza consistência; Relaxed e Disabled podem alterar a estabilidade visual.", WS_CHILD | WS_VISIBLE, 28, 508, 550, 28, -1, g_font);
+    make_control(g_options_window, 0, L"STATIC", L"FSR 1 amplia quando a resolução interna é menor que a de saída.", WS_CHILD | WS_VISIBLE, 28, 536, 540, 28, -1, g_font);
+    make_control(g_options_window, 0, L"STATIC", L"A nitidez só tem efeito quando o FSR 1 está ativado.", WS_CHILD | WS_VISIBLE, 28, 564, 540, 28, -1, g_font);
+    make_control(g_options_window, 0, L"BUTTON", L"Salvar e fechar", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 365, 596, 165, 38, kSaveOptions, g_font);
 }
 
 void create_users_window() {
@@ -539,6 +550,7 @@ LRESULT CALLBACK options_window_proc(HWND window, UINT message, WPARAM wparam, L
         g_fullscreen_value = SendMessageW(g_fullscreen, BM_GETCHECK, 0, 0) == BST_CHECKED;
         g_pro_mode_value = SendMessageW(g_pro_mode, BM_GETCHECK, 0, 0) == BST_CHECKED;
         g_show_fps_value = SendMessageW(g_show_fps, BM_GETCHECK, 0, 0) == BST_CHECKED;
+        g_readbacks_mode_value = std::clamp(static_cast<int>(SendMessageW(g_readbacks_mode, CB_GETCURSEL, 0, 0)), 0, 2);
         g_volume_value_saved = g_slider_value;
         std::error_code ec; std::filesystem::create_directories(g_launcher_ini.parent_path(), ec);
         WritePrivateProfileStringW(L"Launcher", L"Volume", std::to_wstring(g_volume_value_saved).c_str(), g_launcher_ini.c_str());
@@ -550,6 +562,7 @@ LRESULT CALLBACK options_window_proc(HWND window, UINT message, WPARAM wparam, L
         WritePrivateProfileStringW(L"Launcher", L"RefreshRate", g_refresh_index ? L"120" : L"60", g_launcher_ini.c_str());
         WritePrivateProfileStringW(L"Launcher", L"Fullscreen", g_fullscreen_value ? L"1" : L"0", g_launcher_ini.c_str());
         WritePrivateProfileStringW(L"Launcher", L"ProMode", g_pro_mode_value ? L"1" : L"0", g_launcher_ini.c_str());
+        WritePrivateProfileStringW(L"Launcher", L"ReadbacksMode", std::to_wstring(g_readbacks_mode_value).c_str(), g_launcher_ini.c_str());
         ShowWindow(window, SW_HIDE);
         return 0;
     }
@@ -578,13 +591,13 @@ LRESULT CALLBACK options_window_proc(HWND window, UINT message, WPARAM wparam, L
         };
         const bool fsr_checked = SendMessageW(g_fsr_enabled, BM_GETCHECK, 0, 0) == BST_CHECKED;
         draw_slider(220, g_sharpness_value, 0, 100, fsr_checked);
-        draw_slider(425, g_slider_value, 50, 150, true);
+        draw_slider(465, g_slider_value, 50, 150, true);
         SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(245,246,248));
         HFONT old = static_cast<HFONT>(SelectObject(dc,g_font));
         wchar_t value_text[24]{};
         swprintf_s(value_text,L"%d%%",g_sharpness_value); RECT sharpness_rect{510,202,570,232};
         DrawTextW(dc,value_text,-1,&sharpness_rect,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-        swprintf_s(value_text,L"%d%%",g_slider_value); RECT volume_rect{510,407,570,437};
+        swprintf_s(value_text,L"%d%%",g_slider_value); RECT volume_rect{510,447,570,477};
         DrawTextW(dc,value_text,-1,&volume_rect,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
         SelectObject(dc,old); EndPaint(window,&ps); return 0;
     }
@@ -593,7 +606,7 @@ LRESULT CALLBACK options_window_proc(HWND window, UINT message, WPARAM wparam, L
         if (message == WM_LBUTTONDOWN && mx >= 220 && mx <= 510 && my >= 200 && my <= 245 &&
             SendMessageW(g_fsr_enabled, BM_GETCHECK, 0, 0) == BST_CHECKED) {
             g_drag_sharpness=true; SetCapture(window);
-        } else if (message == WM_LBUTTONDOWN && mx >= 220 && mx <= 510 && my >= 405 && my <= 452) {
+        } else if (message == WM_LBUTTONDOWN && mx >= 220 && mx <= 510 && my >= 445 && my <= 492) {
             g_drag_volume=true; SetCapture(window);
         }
         if ((g_drag_volume || g_drag_sharpness) && (message != WM_MOUSEMOVE || (wparam & MK_LBUTTON))) {
@@ -763,7 +776,7 @@ void paint_background(HWND window) {
     auto draw_text = [&](const wchar_t* text, int top, int width, UINT flags = DT_LEFT) {
         RECT r{x, q(top), x + q(width), q(top + 30)}; DrawTextW(hdc, text, -1, &r, flags | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     };
-    draw_text(L"V: 1.00-A — BETA", 74, 500);
+    draw_text(L"V: 1.01-B", 74, 500);
     draw_text(L"Pasta do jogo (CUSA06321, CUSA06316 ou CUSA08562)", 132, 650);
     draw_text(L"Pasta-base dos saves", 226, 650);
     std::wstring used = L"Perfil: " + profile_name(g_selected_user_id) + L"  |  Saves: " + actual_save_path().wstring();
@@ -858,7 +871,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     klass.hCursor = LoadCursorW(nullptr, IDC_ARROW); klass.hbrBackground = nullptr; klass.lpszClassName = kWindowClass;
     klass.hIcon = g_ball_icon ? g_ball_icon : LoadIconW(nullptr, IDI_APPLICATION);
     klass.hIconSm = klass.hIcon; if (!RegisterClassExW(&klass)) return 1;
-    HWND window = CreateWindowExW(0, kWindowClass, L"COURT 18 — V: 1.00-A (BETA)", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+    HWND window = CreateWindowExW(0, kWindowClass, L"COURT 18 — V: 1.01-B", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 1180, 820, nullptr, nullptr, instance, nullptr);
     if (!window) return 1;
     ShowWindow(window, SW_SHOWMAXIMIZED); UpdateWindow(window);
